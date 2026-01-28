@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embroidered Charts Pipeline</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTUiIGZpbGw9IiMyNTYzZWIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJtMTYgNyAyIDcgNyAyLTcgMi0yIDctMi03LTctMiA3LTJaIi8+PC9zdmc+">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --embroidery-accent: #c41e3a;
+            --embroidery-accent-hover: #a01729;
+            --navbar-bg: #212529;
+            --navbar-text: #ffffff;
+        }
+
+        /* Light mode */
+        html[data-bs-theme="light"],
+        html:not([data-bs-theme]) {
+            --embroidery-bg: #f8f9fa;
+            --embroidery-text: #212529;
+            --embroidery-text-muted: #6c757d;
+            --card-bg: #ffffff;
+            --card-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+            --card-shadow-hover: 0 8px 30px rgba(196, 30, 58, 0.15);
+            --card-border: rgba(0, 0, 0, 0.08);
+            --upload-border: rgba(0, 0, 0, 0.15);
+            --upload-bg: #ffffff;
+            --code-bg: #f5f5f5;
+            --hero-bg: linear-gradient(135deg, #fff5f7 0%, #f0fdf4 100%);
+            --hero-border: rgba(196, 30, 58, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #dee2e6;
+        }
+
+        /* Dark mode */
+        html[data-bs-theme="dark"] {
+            --embroidery-bg: #1a1d20;
+            --embroidery-text: #e9ecef;
+            --embroidery-text-muted: #adb5bd;
+            --card-bg: #2b3035;
+            --card-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
+            --card-shadow-hover: 0 8px 30px rgba(196, 30, 58, 0.3);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --upload-border: rgba(255, 255, 255, 0.2);
+            --upload-bg: #2b3035;
+            --code-bg: #1e2125;
+            --hero-bg: linear-gradient(135deg, rgba(196, 30, 58, 0.08) 0%, rgba(46, 139, 87, 0.08) 100%);
+            --hero-border: rgba(255, 255, 255, 0.1);
+            --input-bg: #1e2125;
+            --input-border: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            background: var(--embroidery-bg);
+            color: var(--embroidery-text);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* Navbar - Always dark */
+        .navbar {
+            background: var(--navbar-bg) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            color: var(--navbar-text) !important;
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .navbar .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .navbar .btn-outline-light:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: var(--hero-bg);
+            border-radius: 24px;
+            padding: 4rem 3rem;
+            margin: 2rem 0;
+            border: 1px solid var(--hero-border);
+            box-shadow: var(--card-shadow);
+        }
+
+        .hero-section h1 {
+            color: var(--embroidery-text) !important;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-section h2 {
+            color: var(--embroidery-text-muted) !important;
+            font-weight: 400;
+        }
+
+        .hero-section p {
+            color: var(--embroidery-text-muted) !important;
+            line-height: 1.7;
+        }
+
+        /* Pipeline Cards */
+        .pipeline-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .pipeline-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--card-shadow-hover);
+            border-color: var(--embroidery-accent);
+        }
+
+        .pipeline-card h5 {
+            color: var(--embroidery-text) !important;
+            font-weight: 600;
+        }
+
+        .pipeline-card p {
+            color: var(--embroidery-text-muted) !important;
+            font-size: 0.95rem;
+        }
+
+        .step-badge {
+            background: linear-gradient(135deg, var(--embroidery-accent) 0%, var(--embroidery-accent-hover) 100%);
+            color: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.3);
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--upload-border);
+            border-radius: 16px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--upload-bg);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--embroidery-accent);
+            background: rgba(196, 30, 58, 0.05);
+            transform: scale(1.01);
+        }
+
+        .upload-zone i {
+            color: var(--embroidery-text-muted) !important;
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover i {
+            color: var(--embroidery-accent) !important;
+            transform: scale(1.1);
+        }
+
+        .upload-zone p {
+            color: var(--embroidery-text) !important;
+            margin-bottom: 0;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            color: var(--embroidery-text);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .card-header {
+            border-bottom: 1px solid var(--card-border);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Parameter Controls */
+        .parameter-control {
+            background: var(--card-bg);
+            padding: 1.75rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            border: 1px solid var(--card-border);
+        }
+
+        .parameter-control h5 {
+            color: var(--embroidery-text) !important;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+        }
+
+        .parameter-control label {
+            color: var(--embroidery-text) !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .parameter-control small {
+            color: var(--embroidery-text-muted) !important;
+            font-size: 0.85rem;
+        }
+
+        /* Range Sliders - Improved */
+        .form-range {
+            height: 6px;
+            background: transparent;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .form-range::-webkit-slider-track {
+            height: 6px;
+            background: var(--input-border);
+            border-radius: 3px;
+        }
+
+        .form-range::-moz-range-track {
+            height: 6px;
+            background: var(--input-border);
+            border-radius: 3px;
+        }
+
+        .form-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--embroidery-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(196, 30, 58, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .form-range::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--embroidery-accent);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(196, 30, 58, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .form-range::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.6);
+        }
+
+        .form-range::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.6);
+        }
+
+        /* Buttons */
+        .btn-embroidery {
+            background: linear-gradient(135deg, var(--embroidery-accent) 0%, var(--embroidery-accent-hover) 100%);
+            border: none;
+            color: white;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(196, 30, 58, 0.3);
+        }
+
+        .btn-embroidery:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(196, 30, 58, 0.4);
+            color: white;
+        }
+
+        .btn-embroidery:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Processing Steps */
+        .processing-step {
+            padding: 1.25rem;
+            margin: 0.75rem 0;
+            border-left: 4px solid var(--embroidery-accent);
+            background: var(--card-bg);
+            border-radius: 8px;
+            color: var(--embroidery-text);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .processing-step.active {
+            background: rgba(196, 30, 58, 0.1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            color: var(--embroidery-text);
+            border: 1px solid var(--card-border);
+        }
+
+        /* Accordion */
+        .accordion-item {
+            background: var(--card-bg) !important;
+            color: var(--embroidery-text);
+            border-color: var(--card-border) !important;
+            margin-bottom: 0.5rem;
+            border-radius: 8px !important;
+            overflow: hidden;
+        }
+
+        .accordion-button {
+            background: var(--card-bg) !important;
+            color: var(--embroidery-text) !important;
+            font-weight: 500;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .accordion-button:not(.collapsed) {
+            background: var(--card-bg) !important;
+            color: var(--embroidery-accent) !important;
+            box-shadow: none;
+        }
+
+        .accordion-button:focus {
+            box-shadow: none;
+            border-color: var(--card-border);
+        }
+
+        .accordion-body {
+            color: var(--embroidery-text);
+            padding: 1.5rem;
+        }
+
+        /* Image Preview */
+        .image-preview {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Utility Classes */
+        .text-white-50 {
+            color: var(--embroidery-text-muted) !important;
+        }
+
+        .text-white {
+            color: var(--embroidery-text) !important;
+        }
+
+        /* Smooth Scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--embroidery-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--embroidery-text-muted);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--embroidery-accent);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href=".">
+                <i class="bi bi-patch-check-fill me-2"></i>Embroidered Charts Pipeline
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <div class="ms-auto"></div>
+                <div class="nav-item dropdown ms-2" role="group" aria-label="Toggle dark mode" title="Toggle Dark Mode">
+                    <button class="dark-theme-toggle btn btn-outline-light dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false" aria-label="Toggle theme (auto)">
+                        <i class="bi bi-circle-half"></i> <span class="d-lg-none ms-2">Toggle theme</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><button class="dropdown-item" data-bs-theme-value="light"><i
+                                    class="me-2 bi bi-sun-fill"></i> Light</button></li>
+                        <li><button class="dropdown-item" data-bs-theme-value="dark"><i
+                                    class="me-2 bi bi-moon-stars-fill"></i> Dark</button></li>
+                        <li><button class="dropdown-item" data-bs-theme-value="auto"><i
+                                    class="me-2 bi bi-circle-half"></i> Auto</button></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="hero-section text-center">
+            <h1 class="display-1 my-4 text-white">
+                <i class="bi bi-threads-fill text-danger"></i> Embroidered Charts
+            </h1>
+            <h2 class="display-6 text-white-50">Transform Digital Charts into Handcrafted Textile Art</h2>
+            <div class="mx-auto my-4" style="max-width: 800px;">
+                <p class="lead text-white-50">
+                    This tool uses a programmatic image-processing pipeline to transform standard
+                    digital charts into embroidered masterpieces using ImageMagick-inspired techniques. The process
+                    simulates
+                    thread stitches, fabric texture, and 3D depth—all through code.
+                </p>
+            </div>
+        </div>
+
+        <!-- Pipeline Overview -->
+        <div class="row g-4 my-5">
+            <div class="col-md-4">
+                <div class="pipeline-card p-4 h-100">
+                    <div class="step-badge mb-3">1</div>
+                    <h5 class="text-white"><i class="bi bi-file-earmark-image me-2"></i>Upload Chart</h5>
+                    <p class="text-white-50">Start with any digital chart image (PNG, JPG)</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="pipeline-card p-4 h-100">
+                    <div class="step-badge mb-3">2</div>
+                    <h5 class="text-white"><i class="bi bi-gear-fill me-2"></i>Apply Embroidery</h5>
+                    <p class="text-white-50">Reduce colors, generate thread patterns, simulate stitching</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="pipeline-card p-4 h-100">
+                    <div class="step-badge mb-3">3</div>
+                    <h5 class="text-white"><i class="bi bi-stars me-2"></i>Post-Process</h5>
+                    <p class="text-white-50">Add texture, shading, and 3D depth effects</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="row my-5">
+            <div class="col-lg-8 mx-auto">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-header bg-danger">
+                        <h4 class="mb-0"><i class="bi bi-upload me-2"></i>Upload Your Chart</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-zone" id="uploadZone">
+                            <i class="bi bi-cloud-upload display-1 text-white-50"></i>
+                            <p class="mt-3 text-white">Drag & drop your chart here or click to browse</p>
+                            <input type="file" id="fileInput" accept="image/*" class="d-none">
+                        </div>
+
+                        <!-- Parameters -->
+                        <div class="parameter-control mt-4">
+                            <h5 class="text-white mb-3"><i class="bi bi-sliders me-2"></i>Embroidery Parameters</h5>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label for="numColors" class="form-label text-white-50">Number of Colors</label>
+                                    <input type="range" class="form-range" id="numColors" min="4" max="16" value="8"
+                                        step="1">
+                                    <small class="text-white-50 d-block">Current: <span
+                                            id="numColorsValue">8</span></small>
+                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                        Reduces your chart to this many thread colors. Fewer colors = more stylized
+                                        look.
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="threadThickness" class="form-label text-white-50">Thread
+                                        Thickness</label>
+                                    <input type="range" class="form-range" id="threadThickness" min="1" max="5"
+                                        value="3" step="1">
+                                    <small class="text-white-50 d-block">Current: <span
+                                            id="threadThicknessValue">3</span></small>
+                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                        Controls the width of stitches. Higher values create bolder, more visible
+                                        threads.
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="spreadAmount" class="form-label text-white-50">Spread (Fraying)</label>
+                                    <input type="range" class="form-range" id="spreadAmount" min="1" max="5" value="2"
+                                        step="1">
+                                    <small class="text-white-50 d-block">Current: <span
+                                            id="spreadAmountValue">2</span></small>
+                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                        Adds random pixel displacement for frayed edges. Creates a more organic,
+                                        handmade feel.
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="brightness" class="form-label text-white-50">Brightness</label>
+                                    <input type="range" class="form-range" id="brightness" min="100" max="130"
+                                        value="115" step="5">
+                                    <small class="text-white-50 d-block">Current: <span
+                                            id="brightnessValue">115</span>%</small>
+                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                        Boosts color vibrancy after processing. Restores life to colors dulled by
+                                        texture effects.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="processBtn" class="btn btn-embroidery w-100 mt-4" disabled>
+                            <i class="bi bi-magic me-2"></i>Apply Embroidery Effect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Steps -->
+        <div id="processingSteps" class="row my-5 d-none">
+            <div class="col-lg-8 mx-auto">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-header bg-danger">
+                        <h4 class="mb-0"><i class="bi bi-cpu me-2"></i>Processing Pipeline</h4>
+                    </div>
+                    <div class="card-body" id="stepsContainer">
+                        <!-- Steps will be dynamically added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsSection" class="row my-5 d-none">
+            <div class="col-12">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-header bg-success">
+                        <h4 class="mb-0"><i class="bi bi-check-circle me-2"></i>Results</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <h5 class="text-center mb-3">Original Chart</h5>
+                                <img id="originalImage" class="image-preview" alt="Original">
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-center mb-3">Embroidered Version</h5>
+                                <img id="embroideredImage" class="image-preview" alt="Embroidered">
+                            </div>
+                        </div>
+                        <div class="text-center mt-4">
+                            <button id="downloadBtn" class="btn btn-success btn-lg">
+                                <i class="bi bi-download me-2"></i>Download Embroidered Chart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Methodology -->
+        <div class="row my-5">
+            <div class="col-12">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-header bg-info">
+                        <h4 class="mb-0"><i class="bi bi-book me-2"></i>How It Works</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="accordion accordion-flush" id="methodologyAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#step1">
+                                        Step 1: Base Embroidery (embroidery.sh)
+                                    </button>
+                                </h2>
+                                <div id="step1" class="accordion-collapse collapse"
+                                    data-bs-parent="#methodologyAccordion">
+                                    <div class="accordion-body">
+                                        <p>The core effect uses Fred Weinhaus's embroidery.sh script:</p>
+                                        <div class="code-block">
+                                            ./embroidery.sh -n 8 -p linear -t 3 -g 0 input.png output.png</div>
+                                        <ul class="mt-3">
+                                            <li><code>-n 8</code>: Reduces image to 8 colors</li>
+                                            <li><code>-p linear</code>: Uses linear stitch pattern</li>
+                                            <li><code>-t 3</code>: Medium thread thickness</li>
+                                            <li><code>-g 0</code>: No gray clamping</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item bg-dark text-white">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#step2">
+                                        Step 2: Spread (Fraying Edges)
+                                    </button>
+                                </h2>
+                                <div id="step2" class="accordion-collapse collapse"
+                                    data-bs-parent="#methodologyAccordion">
+                                    <div class="accordion-body">
+                                        <p>Randomly displaces pixels to create frayed edges:</p>
+                                        <div class="code-block">magick input.png -spread 2 output.png</div>
+                                        <p class="mt-3">Each pixel moves up to 2 pixels from its original position,
+                                            breaking the clean digital edges.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item bg-dark text-white">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#step3">
+                                        Step 3: Fabric Texture (Noise Blend)
+                                    </button>
+                                </h2>
+                                <div id="step3" class="accordion-collapse collapse"
+                                    data-bs-parent="#methodologyAccordion">
+                                    <div class="accordion-body">
+                                        <p>Creates vertical fabric grain using Gaussian noise and motion blur:</p>
+                                        <div class="code-block">magick input.png \
+                                            \( +clone +noise Gaussian -motion-blur 0x8+90 \
+                                            -colorspace Gray -auto-level \) \
+                                            -compose SoftLight -composite output.png</div>
+                                        <p class="mt-3">The vertical blur simulates fabric weave, blended using
+                                            SoftLight mode.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item bg-dark text-white">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#step4">
+                                        Step 4: 3D Shading (Bevel & Emboss)
+                                    </button>
+                                </h2>
+                                <div id="step4" class="accordion-collapse collapse"
+                                    data-bs-parent="#methodologyAccordion">
+                                    <div class="accordion-body">
+                                        <p>Adds depth using shade maps to simulate raised threads:</p>
+                                        <div class="code-block">magick input.png \
+                                            \( +clone -colorspace Gray -blur 0x2 \
+                                            -shade 120x55 -auto-level -contrast-stretch 5%x5% \) \
+                                            -compose Overlay -composite output.png</div>
+                                        <p class="mt-3">Light source at 120° azimuth creates highlights and shadows for
+                                            a 3D effect.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item bg-dark text-white">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#step5">
+                                        Step 5: Color Boost
+                                    </button>
+                                </h2>
+                                <div id="step5" class="accordion-collapse collapse"
+                                    data-bs-parent="#methodologyAccordion">
+                                    <div class="accordion-body">
+                                        <p>Final color adjustment to restore vibrancy:</p>
+                                        <div class="code-block">magick input.png -modulate 115,105,100 output.png</div>
+                                        <p class="mt-3">115% brightness, 105% saturation, no hue change.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Credits -->
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@gramex/ui@0.3.1/dist/dark-theme.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>

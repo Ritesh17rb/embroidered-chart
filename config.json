@@ -1,0 +1,271 @@
+{
+    "title": "Embroidered Charts Pipeline",
+    "description": "Transform digital charts into embroidered textile art using programmatic image processing",
+    "defaults": {
+        "model": "gpt-5-nano"
+    },
+    "demos": [
+        {
+            "icon": "bi-palette-fill",
+            "title": "Color Quantization",
+            "body": "Reduces the image to a limited color palette (4-16 colors) to simulate embroidery thread colors",
+            "prompt": "Explain how color quantization works in the embroidery pipeline and why it's important for creating the stitched look.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "snippets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "description": "Example code snippet showing color quantization"
+                                },
+                                "explanation": {
+                                    "type": "string",
+                                    "description": "Explanation of the technique"
+                                }
+                            },
+                            "required": [
+                                "code",
+                                "explanation"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "snippets"
+                ]
+            }
+        },
+        {
+            "icon": "bi-grid-3x3-gap-fill",
+            "title": "Thread Pattern",
+            "body": "Simulates linear stitch patterns by applying directional blur to create the appearance of thread",
+            "prompt": "Explain how thread patterns are created in embroidery and how we simulate them programmatically.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "snippets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "description": "Example code for thread pattern simulation"
+                                },
+                                "explanation": {
+                                    "type": "string",
+                                    "description": "Explanation of the technique"
+                                }
+                            },
+                            "required": [
+                                "code",
+                                "explanation"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "snippets"
+                ]
+            }
+        },
+        {
+            "icon": "bi-shuffle",
+            "title": "Spread & Fraying",
+            "body": "Randomly displaces pixels to create frayed edges, breaking the perfect digital look",
+            "prompt": "Explain the spread/fraying technique and how it makes digital images look more organic and handmade.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "snippets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "description": "Example code for spread effect"
+                                },
+                                "explanation": {
+                                    "type": "string",
+                                    "description": "Explanation of the technique"
+                                }
+                            },
+                            "required": [
+                                "code",
+                                "explanation"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "snippets"
+                ]
+            }
+        },
+        {
+            "icon": "bi-layers-fill",
+            "title": "Fabric Texture",
+            "body": "Adds vertical grain using Gaussian noise and motion blur, blended with Soft Light mode",
+            "prompt": "Explain how fabric texture is created using noise, motion blur, and blend modes to simulate cloth weave.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "snippets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "description": "Example code for fabric texture"
+                                },
+                                "explanation": {
+                                    "type": "string",
+                                    "description": "Explanation of the technique"
+                                }
+                            },
+                            "required": [
+                                "code",
+                                "explanation"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "snippets"
+                ]
+            }
+        },
+        {
+            "icon": "bi-box",
+            "title": "3D Shading",
+            "body": "Creates depth using shade maps to simulate raised threads with highlights and shadows",
+            "prompt": "Explain how 3D shading is achieved using shade maps, gradients, and overlay blending to create the illusion of raised embroidery.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "snippets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "description": "Example code for 3D shading"
+                                },
+                                "explanation": {
+                                    "type": "string",
+                                    "description": "Explanation of the technique"
+                                }
+                            },
+                            "required": [
+                                "code",
+                                "explanation"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "snippets"
+                ]
+            }
+        },
+        {
+            "icon": "bi-brightness-high-fill",
+            "title": "Color Boost",
+            "body": "Final adjustment to restore vibrancy: 115% brightness, 105% saturation",
+            "prompt": "Explain the color modulation step and why it's necessary after all the texture and shading operations.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "snippets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "description": "Example code for color boost"
+                                },
+                                "explanation": {
+                                    "type": "string",
+                                    "description": "Explanation of the technique"
+                                }
+                            },
+                            "required": [
+                                "code",
+                                "explanation"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "snippets"
+                ]
+            }
+        }
+    ],
+    "pipeline": {
+        "steps": [
+            {
+                "name": "Base Embroidery",
+                "description": "Uses embroidery.sh script to reduce colors and create thread patterns",
+                "command": "./embroidery.sh -n 8 -p linear -t 3 -g 0 input.png output.png",
+                "parameters": {
+                    "numColors": "Number of thread colors (4-16)",
+                    "pattern": "Stitch pattern (linear or crosshatch)",
+                    "thickness": "Thread thickness (1-5)",
+                    "grayLimit": "Gray clamping (0 = disabled)"
+                }
+            },
+            {
+                "name": "Spread",
+                "description": "Randomly displaces pixels to create frayed edges",
+                "command": "magick input.png -spread 2 output.png",
+                "parameters": {
+                    "amount": "Maximum pixel displacement (1-5)"
+                }
+            },
+            {
+                "name": "Fabric Texture",
+                "description": "Adds vertical grain using noise and motion blur",
+                "command": "magick input.png \\( +clone +noise Gaussian -motion-blur 0x8+90 -colorspace Gray -auto-level \\) -compose SoftLight -composite output.png",
+                "parameters": {
+                    "blurRadius": "Vertical blur amount (4-12)",
+                    "blendMode": "Soft Light for subtle texture"
+                }
+            },
+            {
+                "name": "3D Shading",
+                "description": "Creates depth using shade maps",
+                "command": "magick input.png \\( +clone -colorspace Gray -blur 0x2 -shade 120x55 -auto-level -contrast-stretch 5%x5% \\) -compose Overlay -composite output.png",
+                "parameters": {
+                    "azimuth": "Light direction angle (120°)",
+                    "elevation": "Light height angle (55°)",
+                    "contrast": "Contrast stretch amount (5%)"
+                }
+            },
+            {
+                "name": "Color Boost",
+                "description": "Restores vibrancy after processing",
+                "command": "magick input.png -modulate 115,105,100 output.png",
+                "parameters": {
+                    "brightness": "Brightness percentage (100-130)",
+                    "saturation": "Saturation percentage (100-120)",
+                    "hue": "Hue shift (usually 100 for no change)"
+                }
+            }
+        ]
+    },
+    "credits": {
+        "author": "Aman Bhargava",
+        "blog": "https://aman.bh/blog/2025-12-29-embroidered-charts/",
+        "embroideryScript": "Fred Weinhaus - http://www.fmwconcepts.com/imagemagick/embroidery/",
+        "inspiration": "Reuters cloth patch graphics"
+    }
+}
