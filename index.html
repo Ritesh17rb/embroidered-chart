@@ -397,6 +397,12 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
         }
 
+        #resultsSection .image-preview {
+            width: 100%;
+            max-height: 560px;
+            object-fit: contain;
+        }
+
         /* Utility Classes */
         .text-white-50 {
             color: var(--embroidery-text-muted) !important;
@@ -466,15 +472,13 @@
     <div class="container mt-4">
         <div class="hero-section text-center">
             <h1 class="display-1 my-4 text-white">
-                <i class="bi bi-threads-fill text-danger"></i> Embroidered Charts
+                <i class="bi bi-brush-fill text-danger"></i> Creative Charts
             </h1>
-            <h2 class="display-6 text-white-50">Transform Digital Charts into Handcrafted Textile Art</h2>
+            <h2 class="display-6 text-white-50">Transform Digital Charts into Artistic Masterpieces</h2>
             <div class="mx-auto my-4" style="max-width: 800px;">
                 <p class="lead text-white-50">
-                    This tool uses a programmatic image-processing pipeline to transform standard
-                    digital charts into embroidered masterpieces using ImageMagick-inspired techniques. The process
-                    simulates
-                    thread stitches, fabric texture, and 3D depth—all through code.
+                    Transform your data viz into hand-crafted art. Choose from Embroidery, Pixel Art,
+                    Blueprints, Oil Painting, and more using client-side image processing.
                 </p>
             </div>
         </div>
@@ -520,7 +524,23 @@
 
                         <!-- Parameters -->
                         <div class="parameter-control mt-4">
-                            <h5 class="text-white mb-3"><i class="bi bi-sliders me-2"></i>Embroidery Parameters</h5>
+                            <h5 class="text-white mb-3"><i class="bi bi-palette me-2"></i>Creative Style</h5>
+                            <select id="styleSelect" class="form-select mb-4 border-secondary">
+                                <option value="embroidery">🧵 Embroidery</option>
+                                <option value="pixel">👾 Pixel Art / Cross-stitch</option>
+                                <option value="blueprint">📐 Architectural Blueprint</option>
+                                <option value="halftone">📰 Pop-Art Halftone</option>
+                                <option value="oil">🎨 Oil Painting</option>
+                                <option value="ascii">💻 ASCII / Terminal</option>
+                                <option value="watercolor">💧 Watercolor</option>
+                                <option value="stainedglass">🪟 Stained Glass</option>
+                                <option value="mosaic">🧱 Mosaic Tiles</option>
+                                <option value="neon">✨ Neon Glow</option>
+                                <option value="sketch">✏️ Pencil Sketch</option>
+                                <option value="comic">💥 Comic Book</option>
+                            </select>
+
+                            <h5 class="text-white mb-3"><i class="bi bi-sliders me-2"></i>Style Parameters</h5>
                             <div class="row g-4">
                                 <div class="col-md-6">
                                     <label for="numColors" class="form-label text-white-50">Number of Colors</label>
@@ -606,8 +626,8 @@
                                 <img id="originalImage" class="image-preview" alt="Original">
                             </div>
                             <div class="col-md-6">
-                                <h5 class="text-center mb-3">Embroidered Version</h5>
-                                <img id="embroideredImage" class="image-preview" alt="Embroidered">
+                                <h5 class="text-center mb-3">Styled Version</h5>
+                                <img id="embroideredImage" class="image-preview" alt="Styled">
                             </div>
                         </div>
                         <div class="text-center mt-4">
@@ -625,105 +645,11 @@
             <div class="col-12">
                 <div class="card border-0 shadow-lg">
                     <div class="card-header bg-info">
-                        <h4 class="mb-0"><i class="bi bi-book me-2"></i>How It Works</h4>
+                        <h4 class="mb-0"><i class="bi bi-book me-2"></i>How It Works?</h4>
                     </div>
                     <div class="card-body">
-                        <div class="accordion accordion-flush" id="methodologyAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#step1">
-                                        Step 1: Base Embroidery (embroidery.sh)
-                                    </button>
-                                </h2>
-                                <div id="step1" class="accordion-collapse collapse"
-                                    data-bs-parent="#methodologyAccordion">
-                                    <div class="accordion-body">
-                                        <p>The core effect uses Fred Weinhaus's embroidery.sh script:</p>
-                                        <div class="code-block">
-                                            ./embroidery.sh -n 8 -p linear -t 3 -g 0 input.png output.png</div>
-                                        <ul class="mt-3">
-                                            <li><code>-n 8</code>: Reduces image to 8 colors</li>
-                                            <li><code>-p linear</code>: Uses linear stitch pattern</li>
-                                            <li><code>-t 3</code>: Medium thread thickness</li>
-                                            <li><code>-g 0</code>: No gray clamping</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="accordion-item bg-dark text-white">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#step2">
-                                        Step 2: Spread (Fraying Edges)
-                                    </button>
-                                </h2>
-                                <div id="step2" class="accordion-collapse collapse"
-                                    data-bs-parent="#methodologyAccordion">
-                                    <div class="accordion-body">
-                                        <p>Randomly displaces pixels to create frayed edges:</p>
-                                        <div class="code-block">magick input.png -spread 2 output.png</div>
-                                        <p class="mt-3">Each pixel moves up to 2 pixels from its original position,
-                                            breaking the clean digital edges.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="accordion-item bg-dark text-white">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#step3">
-                                        Step 3: Fabric Texture (Noise Blend)
-                                    </button>
-                                </h2>
-                                <div id="step3" class="accordion-collapse collapse"
-                                    data-bs-parent="#methodologyAccordion">
-                                    <div class="accordion-body">
-                                        <p>Creates vertical fabric grain using Gaussian noise and motion blur:</p>
-                                        <div class="code-block">magick input.png \
-                                            \( +clone +noise Gaussian -motion-blur 0x8+90 \
-                                            -colorspace Gray -auto-level \) \
-                                            -compose SoftLight -composite output.png</div>
-                                        <p class="mt-3">The vertical blur simulates fabric weave, blended using
-                                            SoftLight mode.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="accordion-item bg-dark text-white">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#step4">
-                                        Step 4: 3D Shading (Bevel & Emboss)
-                                    </button>
-                                </h2>
-                                <div id="step4" class="accordion-collapse collapse"
-                                    data-bs-parent="#methodologyAccordion">
-                                    <div class="accordion-body">
-                                        <p>Adds depth using shade maps to simulate raised threads:</p>
-                                        <div class="code-block">magick input.png \
-                                            \( +clone -colorspace Gray -blur 0x2 \
-                                            -shade 120x55 -auto-level -contrast-stretch 5%x5% \) \
-                                            -compose Overlay -composite output.png</div>
-                                        <p class="mt-3">Light source at 120° azimuth creates highlights and shadows for
-                                            a 3D effect.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="accordion-item bg-dark text-white">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#step5">
-                                        Step 5: Color Boost
-                                    </button>
-                                </h2>
-                                <div id="step5" class="accordion-collapse collapse"
-                                    data-bs-parent="#methodologyAccordion">
-                                    <div class="accordion-body">
-                                        <p>Final color adjustment to restore vibrancy:</p>
-                                        <div class="code-block">magick input.png -modulate 115,105,100 output.png</div>
-                                        <p class="mt-3">115% brightness, 105% saturation, no hue change.</p>
-                                    </div>
-                                </div>
-                            </div>
+                        <div id="methodologyContainer">
+                            <!-- Dynamic Content -->
                         </div>
                     </div>
                 </div>
