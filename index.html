@@ -538,55 +538,60 @@
                                 <option value="neon">✨ Neon Glow</option>
                                 <option value="sketch">✏️ Pencil Sketch</option>
                                 <option value="comic">💥 Comic Book</option>
+                                <option value="woodcut">🪵 Woodcut Print</option>
+                                <option value="glitch">📼 Glitch / VHS</option>
                             </select>
 
                             <h5 class="text-white mb-3"><i class="bi bi-sliders me-2"></i>Style Parameters</h5>
                             <div class="row g-4">
-                                <div class="col-md-6">
+                                <div class="col-md-6" data-param="numColors">
                                     <label for="numColors" class="form-label text-white-50">Number of Colors</label>
                                     <input type="range" class="form-range" id="numColors" min="4" max="16" value="8"
                                         step="1">
-                                    <small class="text-white-50 d-block">Current: <span
+                                    <small class="text-white-50 d-block param-current">Current: <span
                                             id="numColorsValue">8</span></small>
-                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                    <small class="text-white-50 d-block mt-1 param-help" style="font-size: 0.8rem; opacity: 0.8;">
                                         Reduces your chart to this many thread colors. Fewer colors = more stylized
                                         look.
                                     </small>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6" data-param="threadThickness">
                                     <label for="threadThickness" class="form-label text-white-50">Thread
                                         Thickness</label>
                                     <input type="range" class="form-range" id="threadThickness" min="1" max="5"
                                         value="3" step="1">
-                                    <small class="text-white-50 d-block">Current: <span
+                                    <small class="text-white-50 d-block param-current">Current: <span
                                             id="threadThicknessValue">3</span></small>
-                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                    <small class="text-white-50 d-block mt-1 param-help" style="font-size: 0.8rem; opacity: 0.8;">
                                         Controls the width of stitches. Higher values create bolder, more visible
                                         threads.
                                     </small>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6" data-param="spreadAmount">
                                     <label for="spreadAmount" class="form-label text-white-50">Spread (Fraying)</label>
                                     <input type="range" class="form-range" id="spreadAmount" min="1" max="5" value="2"
                                         step="1">
-                                    <small class="text-white-50 d-block">Current: <span
+                                    <small class="text-white-50 d-block param-current">Current: <span
                                             id="spreadAmountValue">2</span></small>
-                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                    <small class="text-white-50 d-block mt-1 param-help" style="font-size: 0.8rem; opacity: 0.8;">
                                         Adds random pixel displacement for frayed edges. Creates a more organic,
                                         handmade feel.
                                     </small>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6" data-param="brightness">
                                     <label for="brightness" class="form-label text-white-50">Brightness</label>
                                     <input type="range" class="form-range" id="brightness" min="100" max="130"
                                         value="115" step="5">
-                                    <small class="text-white-50 d-block">Current: <span
+                                    <small class="text-white-50 d-block param-current">Current: <span
                                             id="brightnessValue">115</span>%</small>
-                                    <small class="text-white-50 d-block mt-1" style="font-size: 0.8rem; opacity: 0.8;">
+                                    <small class="text-white-50 d-block mt-1 param-help" style="font-size: 0.8rem; opacity: 0.8;">
                                         Boosts color vibrancy after processing. Restores life to colors dulled by
                                         texture effects.
                                     </small>
                                 </div>
+                            </div>
+                            <div id="noParamsNote" class="text-white-50 mt-3 d-none" style="font-size: 0.9rem;">
+                                This style has no adjustable parameters.
                             </div>
                         </div>
 

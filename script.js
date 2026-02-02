@@ -99,17 +99,37 @@ class CreativePipeline {
     applyThreadPattern(imageData, thickness) {
         const data = imageData.data, w = imageData.width, h = imageData.height;
         const copy = new Uint8ClampedArray(data);
+
+        // Calculate gradient direction for each pixel to determine thread orientation
+        const gradients = new Float32Array(w * h);
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const idx = y * w + x;
+                const gx = this.getGrayScale(copy, ((y) * w + (x + 1)) * 4) - this.getGrayScale(copy, ((y) * w + (x - 1)) * 4);
+                const gy = this.getGrayScale(copy, ((y + 1) * w + (x)) * 4) - this.getGrayScale(copy, ((y - 1) * w + (x)) * 4);
+                gradients[idx] = Math.atan2(gy, gx); // Store angle
+            }
+        }
+
+        // Apply directional blur based on gradient
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
+                const angle = gradients[y * w + x] || 0;
+                // Thread direction perpendicular to gradient
+                const threadAngle = angle + Math.PI / 2;
+                const dx = Math.cos(threadAngle);
+                const dy = Math.sin(threadAngle);
+
                 let r = 0, g = 0, b = 0, c = 0;
-                for (let dx = -thickness; dx <= thickness; dx++) {
-                    let nx = x + dx;
-                    if (nx >= 0 && nx < w) {
-                        let idx = (y * w + nx) * 4;
+                for (let t = -thickness; t <= thickness; t++) {
+                    const nx = Math.round(x + dx * t);
+                    const ny = Math.round(y + dy * t);
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                        const idx = (ny * w + nx) * 4;
                         r += copy[idx]; g += copy[idx + 1]; b += copy[idx + 2]; c++;
                     }
                 }
-                let idx = (y * w + x) * 4;
+                const idx = (y * w + x) * 4;
                 data[idx] = r / c; data[idx + 1] = g / c; data[idx + 2] = b / c;
             }
         }
@@ -132,34 +152,71 @@ class CreativePipeline {
     }
 
     applyFabricTexture(imageData) {
-        // Simplified noise
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-            let noise = (Math.random() - 0.5) * 30; // +/- 15
-            data[i] = Math.min(255, Math.max(0, data[i] + noise));
-            data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
-            data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+        const data = imageData.data, w = imageData.width, h = imageData.height;
+
+        // Multi-scale fabric weave simulation
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+
+                // Fine grain texture
+                const fineNoise = (Math.random() - 0.5) * 15;
+
+                // Weave pattern (creates subtle cross-hatch)
+                const weaveX = Math.sin(x * 0.3) * 8;
+                const weaveY = Math.sin(y * 0.3) * 8;
+                const weaveNoise = (weaveX + weaveY) * 0.5;
+
+                // Larger fabric bumps
+                const bumpX = Math.sin(x * 0.05) * Math.cos(y * 0.05) * 12;
+
+                const totalNoise = fineNoise + weaveNoise + bumpX;
+
+                data[idx] = Math.min(255, Math.max(0, data[idx] + totalNoise));
+                data[idx + 1] = Math.min(255, Math.max(0, data[idx + 1] + totalNoise));
+                data[idx + 2] = Math.min(255, Math.max(0, data[idx + 2] + totalNoise));
+            }
         }
         return imageData;
     }
 
     apply3DShading(imageData) {
-        // Kept simple for now: slight emboss
-        // (Full logic from previous file was good but long, keeping it lighter or similar)
-        // Re-implementing a basic emboss
         const w = imageData.width, h = imageData.height, data = imageData.data;
         const copy = new Uint8ClampedArray(data);
+
+        // Light source from top-left (more realistic)
+        const lightAngle = Math.PI * 1.25; // 225 degrees
+        const lightX = Math.cos(lightAngle);
+        const lightY = Math.sin(lightAngle);
+
         for (let y = 1; y < h - 1; y++) {
             for (let x = 1; x < w - 1; x++) {
                 const idx = (y * w + x) * 4;
-                const top = ((y - 1) * w + x) * 4;
-                const bottom = ((y + 1) * w + x) * 4;
-                // Vertical gradient
-                const dy = (this.getGrayScale(copy, bottom) - this.getGrayScale(copy, top));
-                const factor = dy * 0.5; // strength
-                data[idx] = Math.min(255, Math.max(0, data[idx] + factor));
-                data[idx + 1] = Math.min(255, Math.max(0, data[idx + 1] + factor));
-                data[idx + 2] = Math.min(255, Math.max(0, data[idx + 2] + factor));
+
+                // Calculate gradients in multiple directions
+                const gx = (this.getGrayScale(copy, (y * w + x + 1) * 4) - this.getGrayScale(copy, (y * w + x - 1) * 4)) / 2;
+                const gy = (this.getGrayScale(copy, ((y + 1) * w + x) * 4) - this.getGrayScale(copy, ((y - 1) * w + x) * 4)) / 2;
+
+                // Normal vector (perpendicular to surface)
+                const nx = -gx / 255;
+                const ny = -gy / 255;
+                const nz = 1; // Assume mostly flat surface
+
+                // Normalize
+                const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                const nnx = nx / len, nny = ny / len, nnz = nz / len;
+
+                // Dot product with light direction (Lambertian shading)
+                const dotProduct = nnx * lightX + nny * lightY + nnz * 0.5;
+                const shading = dotProduct * 40; // Intensity
+
+                // Apply shading with ambient light
+                const ambient = 0.3; // Prevents pure black shadows
+                const finalShading = shading * (1 - ambient) + shading * ambient;
+
+                data[idx] = Math.min(255, Math.max(0, data[idx] + finalShading));
+                data[idx + 1] = Math.min(255, Math.max(0, data[idx + 1] + finalShading));
+                data[idx + 2] = Math.min(255, Math.max(0, data[idx + 2] + finalShading));
             }
         }
         return imageData;
@@ -349,31 +406,106 @@ class CreativePipeline {
         this.ctx.drawImage(img, 0, 0);
         const srcData = this.ctx.getImageData(0, 0, w, h).data;
 
-        // Fill white base
+        // Prime canvas with a warm base
+        this.ctx.fillStyle = '#f3f1e8';
         this.ctx.fillRect(0, 0, w, h);
 
-        // Randomly draw oriented ellipses
-        // Iterate grid but add randomness
-        for (let i = 0; i < (w * h) / 2; i++) { // Reduce density for speed, or loop
-            const x = Math.floor(Math.random() * w);
-            const y = Math.floor(Math.random() * h);
-            const idx = (y * w + x) * 4;
+        const flowField = this.buildFlowField(srcData, w, h);
+        const passes = [
+            { size: radius * 2.6, alpha: 0.55, jitter: 1.1, stepScale: 0.7 },
+            { size: radius * 1.8, alpha: 0.65, jitter: 0.9, stepScale: 0.6 },
+            { size: radius * 1.1, alpha: 0.75, jitter: 0.75, stepScale: 0.5 },
+            { size: radius * 0.7, alpha: 0.85, jitter: 0.6, stepScale: 0.45 }
+        ];
 
-            const r = srcData[idx], g = srcData[idx + 1], b = srcData[idx + 2];
+        passes.forEach(pass => {
+            const spacing = Math.max(2, Math.floor(pass.size * pass.stepScale));
 
-            // Simple "orientation" based on brightness? Or random.
-            const angle = Math.random() * Math.PI;
+            for (let y = 0; y < h; y += spacing) {
+                for (let x = 0; x < w; x += spacing) {
+                    const jx = Math.floor(x + (Math.random() - 0.5) * pass.size * pass.jitter);
+                    const jy = Math.floor(y + (Math.random() - 0.5) * pass.size * pass.jitter);
+                    if (jx < 0 || jx >= w || jy < 0 || jy >= h) continue;
 
-            this.ctx.save();
-            this.ctx.translate(x, y);
-            this.ctx.rotate(angle);
-            this.ctx.fillStyle = `rgb(${r},${g},${b})`;
-            this.ctx.beginPath();
-            this.ctx.ellipse(0, 0, radius * 2, radius / 2, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.restore();
-        }
+                    const idx = (jy * w + jx);
+                    const angle = (flowField[idx] || 0) + (Math.random() - 0.5) * 0.35;
+                    const color = this.sampleNeighborhood(srcData, w, h, jx, jy, Math.max(1, Math.floor(pass.size * 0.35)));
+
+                    const strokeWidth = pass.size * (0.9 + Math.random() * 0.3);
+                    const strokeHeight = pass.size * (0.22 + Math.random() * 0.2);
+                    const highlight = [
+                        Math.min(255, color[0] + 18),
+                        Math.min(255, color[1] + 18),
+                        Math.min(255, color[2] + 18)
+                    ];
+                    const shadow = [
+                        Math.max(0, color[0] - 14),
+                        Math.max(0, color[1] - 14),
+                        Math.max(0, color[2] - 14)
+                    ];
+
+                    this.ctx.save();
+                    this.ctx.translate(jx, jy);
+                    this.ctx.rotate(angle);
+
+                    // Base pigment layer
+                    this.ctx.globalAlpha = pass.alpha;
+                    this.ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(0, 0, strokeWidth, strokeHeight, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Impasto shadow
+                    this.ctx.globalAlpha = pass.alpha * 0.55;
+                    this.ctx.fillStyle = `rgb(${shadow[0]},${shadow[1]},${shadow[2]})`;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(-strokeWidth * 0.08, -strokeHeight * 0.25, strokeWidth * 0.9, strokeHeight * 0.85, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Impasto highlight
+                    this.ctx.globalAlpha = pass.alpha * 0.45;
+                    this.ctx.fillStyle = `rgb(${highlight[0]},${highlight[1]},${highlight[2]})`;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(strokeWidth * 0.08, strokeHeight * 0.25, strokeWidth * 0.8, strokeHeight * 0.7, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    this.ctx.restore();
+                }
+            }
+        });
+
         this.imageData = this.ctx.getImageData(0, 0, w, h);
+    }
+
+    buildFlowField(srcData, w, h) {
+        const flow = new Float32Array(w * h);
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const idx = y * w + x;
+                const gx = this.getGrayScale(srcData, (y * w + x + 1) * 4) - this.getGrayScale(srcData, (y * w + x - 1) * 4);
+                const gy = this.getGrayScale(srcData, ((y + 1) * w + x) * 4) - this.getGrayScale(srcData, ((y - 1) * w + x) * 4);
+                flow[idx] = Math.atan2(gy, gx);
+            }
+        }
+        return flow;
+    }
+
+    sampleNeighborhood(srcData, w, h, x, y, radius) {
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                const nidx = (ny * w + nx) * 4;
+                r += srcData[nidx];
+                g += srcData[nidx + 1];
+                b += srcData[nidx + 2];
+                count++;
+            }
+        }
+        if (!count) return [0, 0, 0];
+        return [Math.round(r / count), Math.round(g / count), Math.round(b / count)];
     }
 
     // ==========================================
@@ -437,11 +569,79 @@ class CreativePipeline {
     }
 
     applyColorBleeding(imageData, intensity) {
-        // Multiple passes of spread for watercolor bleeding effect
-        for (let pass = 0; pass < 3; pass++) {
-            this.applySpread(imageData, intensity * 2);
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+
+        // Multiple passes with decreasing intensity for natural bleeding
+        for (let pass = 0; pass < 4; pass++) {
+            const copy = new Uint8ClampedArray(data);
+            const passIntensity = intensity * (1 - pass * 0.15); // Reduce intensity each pass
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+
+                    // Sample from random nearby pixels (simulates water diffusion)
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (Math.PI * 2 * i) / 8 + (Math.random() - 0.5) * 0.5;
+                        const dist = passIntensity * (0.5 + Math.random() * 1.5);
+                        const nx = Math.round(x + Math.cos(angle) * dist);
+                        const ny = Math.round(y + Math.sin(angle) * dist);
+
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            const nidx = (ny * w + nx) * 4;
+                            r += copy[nidx];
+                            g += copy[nidx + 1];
+                            b += copy[nidx + 2];
+                            count++;
+                        }
+                    }
+
+                    // Blend with original (preserves some detail)
+                    const blendFactor = 0.7;
+                    data[idx] = data[idx] * (1 - blendFactor) + (r / count) * blendFactor;
+                    data[idx + 1] = data[idx + 1] * (1 - blendFactor) + (g / count) * blendFactor;
+                    data[idx + 2] = data[idx + 2] * (1 - blendFactor) + (b / count) * blendFactor;
+                }
+            }
         }
+
+        // Add edge darkening (paint pools at edges)
+        this.applyEdgeDarkening(imageData);
+
         return imageData;
+    }
+
+    applyEdgeDarkening(imageData) {
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const idx = (y * w + x) * 4;
+
+                // Detect edges by color difference
+                let maxDiff = 0;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nidx = ((y + dy) * w + (x + dx)) * 4;
+                        const diff = Math.abs(copy[idx] - copy[nidx]) +
+                            Math.abs(copy[idx + 1] - copy[nidx + 1]) +
+                            Math.abs(copy[idx + 2] - copy[nidx + 2]);
+                        maxDiff = Math.max(maxDiff, diff);
+                    }
+                }
+
+                // Darken edges slightly
+                if (maxDiff > 30) {
+                    const darken = Math.min(30, maxDiff * 0.15);
+                    data[idx] = Math.max(0, data[idx] - darken);
+                    data[idx + 1] = Math.max(0, data[idx + 1] - darken);
+                    data[idx + 2] = Math.max(0, data[idx + 2] - darken);
+                }
+            }
+        }
     }
 
     applyPaperTexture(imageData) {
@@ -495,34 +695,108 @@ class CreativePipeline {
         const w = imageData.width, h = imageData.height, data = imageData.data;
         const copy = new Uint8ClampedArray(data);
 
+        // Create edge map first
+        const edges = new Uint8Array(w * h);
+
         for (let y = 1; y < h - 1; y++) {
             for (let x = 1; x < w - 1; x++) {
                 const idx = (y * w + x) * 4;
-                const right = (y * w + x + 1) * 4;
-                const bottom = ((y + 1) * w + x) * 4;
 
-                // Detect color boundaries
-                const diffR = Math.abs(copy[idx] - copy[right]) + Math.abs(copy[idx] - copy[bottom]);
-                const diffG = Math.abs(copy[idx + 1] - copy[right + 1]) + Math.abs(copy[idx + 1] - copy[bottom + 1]);
-                const diffB = Math.abs(copy[idx + 2] - copy[right + 2]) + Math.abs(copy[idx + 2] - copy[bottom + 2]);
+                // Check all neighbors for color boundaries
+                let maxDiff = 0;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nidx = ((y + dy) * w + (x + dx)) * 4;
+                        const diff = Math.abs(copy[idx] - copy[nidx]) +
+                            Math.abs(copy[idx + 1] - copy[nidx + 1]) +
+                            Math.abs(copy[idx + 2] - copy[nidx + 2]);
+                        maxDiff = Math.max(maxDiff, diff);
+                    }
+                }
 
-                if (diffR + diffG + diffB > 100) {
-                    // Draw black lead line
-                    data[idx] = 20; data[idx + 1] = 20; data[idx + 2] = 20;
+                edges[y * w + x] = maxDiff > 80 ? 255 : 0;
+            }
+        }
+
+        // Thicken lead lines (2-3 pixels wide)
+        const thickEdges = new Uint8Array(w * h);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (edges[y * w + x] > 0) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const ny = y + dy, nx = x + dx;
+                            if (ny >= 0 && ny < h && nx >= 0 && nx < w) {
+                                thickEdges[ny * w + nx] = 255;
+                            }
+                        }
+                    }
                 }
             }
         }
+
+        // Apply lead lines with realistic dark gray color
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (thickEdges[y * w + x] > 0) {
+                    const idx = (y * w + x) * 4;
+                    // Dark gray with slight variation
+                    const leadColor = 15 + Math.random() * 10;
+                    data[idx] = leadColor;
+                    data[idx + 1] = leadColor;
+                    data[idx + 2] = leadColor;
+                }
+            }
+        }
+
         return imageData;
     }
 
     applyGlassShine(imageData) {
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-            // Add random bright spots for glass reflection
-            if (Math.random() < 0.02) {
-                data[i] = Math.min(255, data[i] + 80);
-                data[i + 1] = Math.min(255, data[i + 1] + 80);
-                data[i + 2] = Math.min(255, data[i + 2] + 80);
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+
+        // Add texture variation within glass pieces
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+
+                // Skip lead lines (very dark pixels)
+                if (data[idx] < 30 && data[idx + 1] < 30 && data[idx + 2] < 30) continue;
+
+                // Subtle color variation within glass
+                const variation = (Math.sin(x * 0.1) * Math.cos(y * 0.1)) * 8;
+                data[idx] = Math.min(255, Math.max(0, data[idx] + variation));
+                data[idx + 1] = Math.min(255, Math.max(0, data[idx + 1] + variation));
+                data[idx + 2] = Math.min(255, Math.max(0, data[idx + 2] + variation));
+
+                // Concentrated highlights (more realistic glass reflections)
+                const highlightChance = 0.015; // 1.5% of pixels
+                if (Math.random() < highlightChance) {
+                    // Brightness of highlight depends on base color
+                    const baseBrightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                    const highlightIntensity = 60 + baseBrightness * 0.3;
+
+                    // Add highlight with slight color tint from glass
+                    data[idx] = Math.min(255, data[idx] + highlightIntensity);
+                    data[idx + 1] = Math.min(255, data[idx + 1] + highlightIntensity);
+                    data[idx + 2] = Math.min(255, data[idx + 2] + highlightIntensity);
+
+                    // Spread highlight slightly
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const ny = y + dy, nx = x + dx;
+                            if (ny >= 0 && ny < h && nx >= 0 && nx < w) {
+                                const nidx = (ny * w + nx) * 4;
+                                const spreadIntensity = highlightIntensity * 0.4;
+                                data[nidx] = Math.min(255, data[nidx] + spreadIntensity);
+                                data[nidx + 1] = Math.min(255, data[nidx + 1] + spreadIntensity);
+                                data[nidx + 2] = Math.min(255, data[nidx + 2] + spreadIntensity);
+                            }
+                        }
+                    }
+                }
             }
         }
         return imageData;
@@ -600,29 +874,56 @@ class CreativePipeline {
         const w = imageData.width, h = imageData.height, data = imageData.data;
         const copy = new Uint8ClampedArray(data);
 
-        // Create glow by blurring bright edges
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                const idx = (y * w + x) * 4;
-                if (copy[idx] > 128) {
-                    // Bright pixel - add glow
-                    const glowRadius = 5;
-                    for (let dy = -glowRadius; dy <= glowRadius; dy++) {
-                        for (let dx = -glowRadius; dx <= glowRadius; dx++) {
-                            const nx = x + dx, ny = y + dy;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                const nidx = (ny * w + nx) * 4;
-                                const dist = Math.sqrt(dx * dx + dy * dy);
-                                const falloff = Math.max(0, 1 - dist / glowRadius);
-                                data[nidx] = Math.min(255, data[nidx] + 100 * falloff);
-                                data[nidx + 1] = Math.min(255, data[nidx + 1] + 255 * falloff);
-                                data[nidx + 2] = Math.min(255, data[nidx + 2] + 200 * falloff);
+        // Create glow map
+        const glowMap = new Uint8ClampedArray(w * h * 4);
+
+        // Multi-layer glow for more realistic effect
+        const glowLayers = [
+            { radius: 8, intensity: 0.8, color: [255, 100, 255] },  // Outer glow (magenta)
+            { radius: 5, intensity: 1.0, color: [100, 255, 255] },  // Mid glow (cyan)
+            { radius: 2, intensity: 1.2, color: [255, 255, 255] }   // Core glow (white)
+        ];
+
+        glowLayers.forEach(layer => {
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+
+                    if (copy[idx] > 128) { // Bright pixel - source of glow
+                        const brightness = (copy[idx] + copy[idx + 1] + copy[idx + 2]) / (3 * 255);
+
+                        // Add glow around this pixel
+                        for (let dy = -layer.radius; dy <= layer.radius; dy++) {
+                            for (let dx = -layer.radius; dx <= layer.radius; dx++) {
+                                const nx = x + dx, ny = y + dy;
+                                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                    const nidx = (ny * w + nx) * 4;
+                                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                                    if (dist <= layer.radius) {
+                                        // Smooth falloff using squared distance
+                                        const falloff = Math.pow(1 - dist / layer.radius, 2);
+                                        const glowStrength = falloff * layer.intensity * brightness * 80;
+
+                                        glowMap[nidx] += layer.color[0] * glowStrength / 255;
+                                        glowMap[nidx + 1] += layer.color[1] * glowStrength / 255;
+                                        glowMap[nidx + 2] += layer.color[2] * glowStrength / 255;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
+        });
+
+        // Apply glow map to image
+        for (let i = 0; i < data.length; i += 4) {
+            data[i] = Math.min(255, data[i] + glowMap[i]);
+            data[i + 1] = Math.min(255, data[i + 1] + glowMap[i + 1]);
+            data[i + 2] = Math.min(255, data[i + 2] + glowMap[i + 2]);
         }
+
         return imageData;
     }
 
@@ -662,22 +963,71 @@ class CreativePipeline {
         const w = imageData.width, h = imageData.height, data = imageData.data;
         const copy = new Uint8ClampedArray(data);
 
-        // Invert and apply edge detection for pencil effect
+        // Invert for color dodge
+        const inverted = new Uint8ClampedArray(data.length);
         for (let i = 0; i < data.length; i += 4) {
-            data[i] = 255 - data[i];
-            data[i + 1] = 255 - data[i + 1];
-            data[i + 2] = 255 - data[i + 2];
+            inverted[i] = 255 - data[i];
+            inverted[i + 1] = 255 - data[i + 1];
+            inverted[i + 2] = 255 - data[i + 2];
         }
 
-        // Blur inverted image
-        this.applySoftEdges(imageData, 2);
+        // Apply stronger blur to inverted image for better pencil effect
+        const blurred = new Uint8ClampedArray(inverted);
+        const blurRadius = 3;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let sum = 0, count = 0;
+                for (let dy = -blurRadius; dy <= blurRadius; dy++) {
+                    for (let dx = -blurRadius; dx <= blurRadius; dx++) {
+                        const ny = y + dy, nx = x + dx;
+                        if (ny >= 0 && ny < h && nx >= 0 && nx < w) {
+                            const idx = (ny * w + nx) * 4;
+                            sum += inverted[idx];
+                            count++;
+                        }
+                    }
+                }
+                const idx = (y * w + x) * 4;
+                const avg = sum / count;
+                blurred[idx] = avg;
+                blurred[idx + 1] = avg;
+                blurred[idx + 2] = avg;
+            }
+        }
 
-        // Blend with original using color dodge
+        // Color dodge blend
         for (let i = 0; i < data.length; i += 4) {
             const base = copy[i];
-            const blend = data[i];
-            const result = blend === 255 ? 255 : Math.min(255, (base * 256) / (255 - blend));
-            data[i] = result; data[i + 1] = result; data[i + 2] = result;
+            const blend = blurred[i];
+
+            let result;
+            if (blend >= 255) {
+                result = 255;
+            } else {
+                result = Math.min(255, (base * 256) / (255 - blend + 1));
+            }
+
+            data[i] = result;
+            data[i + 1] = result;
+            data[i + 2] = result;
+        }
+
+        // Add subtle cross-hatching in darker areas
+        for (let y = 0; y < h; y += 3) {
+            for (let x = 0; x < w; x += 3) {
+                const idx = (y * w + x) * 4;
+                const brightness = data[idx];
+
+                // Add hatching to mid-dark tones
+                if (brightness > 50 && brightness < 180) {
+                    // Diagonal hatching pattern
+                    if ((x + y) % 6 < 2) {
+                        data[idx] = Math.max(0, data[idx] - 20);
+                        data[idx + 1] = Math.max(0, data[idx + 1] - 20);
+                        data[idx + 2] = Math.max(0, data[idx + 2] - 20);
+                    }
+                }
+            }
         }
 
         return imageData;
@@ -741,6 +1091,139 @@ class CreativePipeline {
     }
 
     // ==========================================
+    // STYLE M: WOODCUT PRINT
+    // ==========================================
+    async applyWoodcut(img, params) {
+        const steps = [
+            { name: 'Converting to grayscale...', fn: () => this.convertToGrayscale(this.imageData) },
+            { name: 'Carving ink threshold...', fn: () => this.applyWoodcutThreshold(this.imageData, params.brightness) },
+            { name: 'Adding hatch lines...', fn: () => this.applyWoodcutHatching(this.imageData, params.threadThickness) },
+            { name: 'Adding paper texture...', fn: () => this.applyPaperTexture(this.imageData) }
+        ];
+        return this.runPipeline(img, steps);
+    }
+
+    applyWoodcutThreshold(imageData, brightness) {
+        const data = imageData.data;
+        const base = 120 - (brightness - 100) * 1.2;
+        const mid = base + 60;
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = this.getGrayScale(data, i);
+            let val = 245;
+            if (gray < base) val = 40;
+            else if (gray < mid) val = 160;
+            data[i] = val; data[i + 1] = val; data[i + 2] = val;
+        }
+        return imageData;
+    }
+
+    applyWoodcutHatching(imageData, thickness) {
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+        const spacing = Math.max(3, 10 - thickness * 1.5);
+        const lineWidth = Math.max(1, Math.round(thickness / 2));
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const val = data[idx];
+
+                if (val < 80) {
+                    data[idx] = 0; data[idx + 1] = 0; data[idx + 2] = 0;
+                    if ((x - y) % spacing < lineWidth) {
+                        data[idx] = 0; data[idx + 1] = 0; data[idx + 2] = 0;
+                    }
+                } else if (val < 160) {
+                    if ((x + y) % spacing < lineWidth) {
+                        data[idx] = 0; data[idx + 1] = 0; data[idx + 2] = 0;
+                    } else {
+                        data[idx] = 255; data[idx + 1] = 255; data[idx + 2] = 255;
+                    }
+                }
+            }
+        }
+        return imageData;
+    }
+
+    // ==========================================
+    // STYLE N: GLITCH / VHS
+    // ==========================================
+    async applyGlitch(img, params) {
+        const steps = [
+            { name: 'Shifting RGB channels...', fn: () => this.applyChannelShift(this.imageData, params.spreadAmount) },
+            { name: 'Displacing scan slices...', fn: () => this.applyGlitchSlices(this.imageData, params.spreadAmount) },
+            { name: 'Adding scanlines...', fn: () => this.applyScanlines(this.imageData, params.threadThickness) },
+            { name: 'Boosting signal...', fn: () => this.applyColorBoost(this.imageData, params.brightness, 105) }
+        ];
+        return this.runPipeline(img, steps);
+    }
+
+    applyChannelShift(imageData, amount) {
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+        const rShift = Math.round(amount * 2);
+        const gShift = Math.round(amount);
+        const bShift = -Math.round(amount * 1.5);
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const rX = Math.min(w - 1, Math.max(0, x + rShift));
+                const gX = Math.min(w - 1, Math.max(0, x + gShift));
+                const bX = Math.min(w - 1, Math.max(0, x + bShift));
+
+                const rIdx = (y * w + rX) * 4;
+                const gIdx = (y * w + gX) * 4;
+                const bIdx = (y * w + bX) * 4;
+
+                data[idx] = copy[rIdx];
+                data[idx + 1] = copy[gIdx + 1];
+                data[idx + 2] = copy[bIdx + 2];
+            }
+        }
+        return imageData;
+    }
+
+    applyGlitchSlices(imageData, amount) {
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+        const sliceCount = 4 + amount * 2;
+
+        for (let s = 0; s < sliceCount; s++) {
+            const sliceY = Math.floor(Math.random() * h);
+            const sliceH = Math.min(h - sliceY, 6 + Math.floor(Math.random() * 18));
+            const offset = Math.floor((Math.random() - 0.5) * amount * 8);
+
+            for (let y = sliceY; y < sliceY + sliceH; y++) {
+                for (let x = 0; x < w; x++) {
+                    const srcX = Math.min(w - 1, Math.max(0, x + offset));
+                    const idx = (y * w + x) * 4;
+                    const srcIdx = (y * w + srcX) * 4;
+                    data[idx] = copy[srcIdx];
+                    data[idx + 1] = copy[srcIdx + 1];
+                    data[idx + 2] = copy[srcIdx + 2];
+                }
+            }
+        }
+        return imageData;
+    }
+
+    applyScanlines(imageData, thickness) {
+        const w = imageData.width, h = imageData.height, data = imageData.data;
+        const spacing = Math.max(2, thickness * 2);
+        for (let y = 0; y < h; y++) {
+            if (y % spacing === 0) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+                    data[idx] = Math.max(0, data[idx] - 20);
+                    data[idx + 1] = Math.max(0, data[idx + 1] - 20);
+                    data[idx + 2] = Math.max(0, data[idx + 2] - 20);
+                }
+            }
+        }
+        return imageData;
+    }
+
+    // ==========================================
     // PIPELINE RUNNER
     // ==========================================
 
@@ -779,6 +1262,8 @@ class CreativePipeline {
             case 'neon': return this.applyNeon(img, params);
             case 'sketch': return this.applySketch(img, params);
             case 'comic': return this.applyComic(img, params);
+            case 'woodcut': return this.applyWoodcut(img, params);
+            case 'glitch': return this.applyGlitch(img, params);
             case 'embroidery':
             default:
                 return this.applyEmbroidery(img, params);
@@ -1080,43 +1565,33 @@ class UIController {
                             </div>
                         </div>
                         <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#oStep2">Step 2: Stochastic Brush Stroke Placement</button></h2>
+                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#oStep2">Step 2: Flow-Guided Stroke Placement</button></h2>
                             <div id="oStep2" class="accordion-collapse collapse" data-bs-parent="#methodologyOil">
                                 <div class="accordion-body">
-                                    <p><strong>Algorithm:</strong> Monte Carlo Random Sampling with Elliptical Strokes</p>
-                                    <p>Simulates impasto painting technique with oriented brush strokes:</p>
+                                    <p><strong>Algorithm:</strong> Gradient Flow Field + Elliptical Strokes</p>
+                                    <p>Orients strokes using a flow field derived from image gradients:</p>
                                     <ul>
-                                        <li>Clears canvas to white (primed canvas)</li>
-                                        <li>Calculates brush size: brushSize = max(3, threadThickness × 2)</li>
-                                        <li>Generates (width × height) / 2 random stroke positions</li>
-                                        <li>For each stroke:
-                                            <ul>
-                                                <li>Random position: x = random(0, width), y = random(0, height)</li>
-                                                <li>Samples RGB color from that coordinate</li>
-                                                <li>Random orientation: angle = random(0, π)</li>
-                                                <li>Draws ellipse with dimensions: width = brushSize × 2, height = brushSize / 2</li>
-                                            </ul>
-                                        </li>
-                                        <li>Uses Canvas transformation matrix for rotation</li>
+                                        <li>Computes local gradient direction (edge flow) from luminance</li>
+                                        <li>Uses flow direction as stroke orientation with subtle random jitter</li>
+                                        <li>Samples neighborhood colors for natural paint mixing</li>
+                                        <li>Draws elliptical strokes aligned to flow for brush-like texture</li>
                                     </ul>
-                                    <p><strong>Effect:</strong> Creates characteristic directional brush strokes with visible texture and orientation variation.</p>
+                                    <p><strong>Effect:</strong> Strokes follow structure in the image, creating more natural, painterly motion.</p>
                                 </div>
                             </div>
                         </div>
                         <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#oStep3">Step 3: Layered Stroke Application</button></h2>
+                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#oStep3">Step 3: Iterative Layering + Impasto</button></h2>
                             <div id="oStep3" class="accordion-collapse collapse" data-bs-parent="#methodologyOil">
                                 <div class="accordion-body">
-                                    <p><strong>Algorithm:</strong> Additive Blending with Overlap</p>
-                                    <p>Builds up paint layers through multiple overlapping strokes:</p>
+                                    <p><strong>Algorithm:</strong> Multi-Pass Refinement</p>
+                                    <p>Builds texture with multiple passes from large to small strokes:</p>
                                     <ul>
-                                        <li>Strokes are applied sequentially without clearing between them</li>
-                                        <li>Later strokes partially cover earlier ones (painter's algorithm)</li>
-                                        <li>Overlap creates color mixing and depth</li>
-                                        <li>Random positioning ensures organic, non-uniform coverage</li>
-                                        <li>Some areas receive multiple strokes (darker), others fewer (lighter)</li>
+                                        <li>Applies several iterations with decreasing brush size</li>
+                                        <li>Overlaps strokes to simulate wet paint blending</li>
+                                        <li>Adds light/shadow offsets to mimic impasto ridges</li>
                                     </ul>
-                                    <p><strong>Effect:</strong> Produces thick, textured appearance of oil paint with visible brushwork. Mimics impasto technique where paint is applied thickly enough to show brush/palette knife marks.</p>
+                                    <p><strong>Effect:</strong> Produces richer texture and more physical brush depth.</p>
                                 </div>
                             </div>
                         </div>
@@ -1514,6 +1989,124 @@ class UIController {
                             </div>
                         </div>
                     </div>`
+            },
+            woodcut: {
+                btnText: "Apply Woodcut Print",
+                methodology: `
+                    <div class="accordion accordion-flush" id="methodologyWoodcut">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#wcStep1">Step 1: Grayscale Carving</button></h2>
+                            <div id="wcStep1" class="accordion-collapse collapse show" data-bs-parent="#methodologyWoodcut">
+                                <div class="accordion-body">
+                                    <p><strong>Algorithm:</strong> Luminance Thresholding</p>
+                                    <p>Converts the image to black/white using a brightness threshold. Lower thresholds produce heavier ink coverage.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#wcStep2">Step 2: Hatch Lines</button></h2>
+                            <div id="wcStep2" class="accordion-collapse collapse" data-bs-parent="#methodologyWoodcut">
+                                <div class="accordion-body">
+                                    <p><strong>Algorithm:</strong> Directional Crosshatching</p>
+                                    <p>Adds angled hatch lines in mid and dark tones to mimic carved grooves.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#wcStep3">Step 3: Paper Texture</button></h2>
+                            <div id="wcStep3" class="accordion-collapse collapse" data-bs-parent="#methodologyWoodcut">
+                                <div class="accordion-body">
+                                    <p>Applies subtle grain so the print feels pressed into paper.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+            },
+            glitch: {
+                btnText: "Apply Glitch / VHS",
+                methodology: `
+                    <div class="accordion accordion-flush" id="methodologyGlitch">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#gStep1">Step 1: RGB Channel Shift</button></h2>
+                            <div id="gStep1" class="accordion-collapse collapse show" data-bs-parent="#methodologyGlitch">
+                                <div class="accordion-body">
+                                    <p>Offsets red/green/blue channels by a few pixels to create chromatic tearing.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#gStep2">Step 2: Horizontal Slice Distortion</button></h2>
+                            <div id="gStep2" class="accordion-collapse collapse" data-bs-parent="#methodologyGlitch">
+                                <div class="accordion-body">
+                                    <p>Random horizontal bands are displaced to mimic VHS tracking errors.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#gStep3">Step 3: Scanlines</button></h2>
+                            <div id="gStep3" class="accordion-collapse collapse" data-bs-parent="#methodologyGlitch">
+                                <div class="accordion-body">
+                                    <p>Adds subtle scanlines and boosts signal intensity.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+            }
+        };
+
+        this.styleParamVisibility = {
+            embroidery: ['numColors', 'threadThickness', 'spreadAmount', 'brightness'],
+            pixel: ['numColors', 'threadThickness'],
+            blueprint: [],
+            halftone: ['threadThickness'],
+            oil: ['threadThickness'],
+            ascii: [],
+            watercolor: ['spreadAmount', 'threadThickness'],
+            stainedglass: ['numColors'],
+            mosaic: ['threadThickness'],
+            neon: ['brightness'],
+            sketch: [],
+            comic: ['numColors', 'threadThickness'],
+            woodcut: ['threadThickness', 'brightness'],
+            glitch: ['spreadAmount', 'threadThickness', 'brightness']
+        };
+
+        this.styleParamOverrides = {
+            pixel: {
+                threadThickness: { label: 'Pixel Size', help: 'Controls the size of each pixel block.' },
+                numColors: { label: 'Palette Colors', help: 'Limits the palette to a retro color count.' }
+            },
+            halftone: {
+                threadThickness: { label: 'Dot Size', help: 'Controls halftone dot size and spacing.' }
+            },
+            oil: {
+                threadThickness: { label: 'Brush Size', help: 'Sets the width of each oil stroke.' }
+            },
+            watercolor: {
+                spreadAmount: { label: 'Bleed Amount', help: 'Controls pigment diffusion and bleeding.' },
+                threadThickness: { label: 'Edge Softness', help: 'Softens watercolor edges and transitions.' }
+            },
+            stainedglass: {
+                numColors: { label: 'Glass Pieces', help: 'Controls the number of colored glass segments.' }
+            },
+            mosaic: {
+                threadThickness: { label: 'Tile Size', help: 'Controls the size of mosaic tiles.' }
+            },
+            neon: {
+                brightness: { label: 'Glow Intensity', help: 'Amplifies the neon glow strength.' }
+            },
+            comic: {
+                threadThickness: { label: 'Dot Size', help: 'Controls Ben-Day dot size.' },
+                numColors: { label: 'Ink Palette', help: 'Limits colors to a comic-style palette.' }
+            },
+            woodcut: {
+                threadThickness: { label: 'Hatch Density', help: 'Controls crosshatch density in carved areas.' },
+                brightness: { label: 'Ink Threshold', help: 'Adjusts the cut vs ink balance.' }
+            },
+            glitch: {
+                spreadAmount: { label: 'Glitch Amount', help: 'Controls slice displacement and RGB offset.' },
+                threadThickness: { label: 'Scanline Density', help: 'Controls scanline spacing.' },
+                brightness: { label: 'Signal Boost', help: 'Boosts VHS signal intensity.' }
             }
         };
 
@@ -1542,6 +2135,21 @@ class UIController {
         this.threadThickness = document.getElementById('threadThickness');
         this.spreadAmount = document.getElementById('spreadAmount');
         this.brightness = document.getElementById('brightness');
+
+        this.paramGroups = document.querySelectorAll('[data-param]');
+        this.noParamsNote = document.getElementById('noParamsNote');
+        this.paramMeta = {};
+        this.paramGroups.forEach(group => {
+            const key = group.dataset.param;
+            const label = group.querySelector('label');
+            const help = group.querySelector('.param-help');
+            this.paramMeta[key] = {
+                labelEl: label,
+                helpEl: help,
+                defaultLabel: label ? label.textContent.trim() : '',
+                defaultHelp: help ? help.textContent.trim() : ''
+            };
+        });
     }
 
     attachEventListeners() {
@@ -1591,7 +2199,28 @@ class UIController {
 
         // Update Result Title
         const titleEl = document.querySelector('#resultsSection .col-12:last-child h5');
-        if (titleEl) titleEl.textContent = `${style.charAt(0).toUpperCase() + style.slice(1)} Version`;
+        if (titleEl) {
+            const optionText = this.styleSelect.options[this.styleSelect.selectedIndex]?.textContent || style;
+            const displayName = optionText.replace(/^[^a-zA-Z0-9]+/, '').trim();
+            titleEl.textContent = `${displayName} Version`;
+        }
+
+        const visibleParams = new Set(this.styleParamVisibility[style] || []);
+        this.paramGroups.forEach(group => {
+            const key = group.dataset.param;
+            group.classList.toggle('d-none', !visibleParams.has(key));
+        });
+        if (this.noParamsNote) {
+            this.noParamsNote.classList.toggle('d-none', visibleParams.size !== 0);
+        }
+
+        const overrides = this.styleParamOverrides[style] || {};
+        Object.keys(this.paramMeta).forEach(key => {
+            const meta = this.paramMeta[key];
+            const override = overrides[key] || {};
+            if (meta.labelEl) meta.labelEl.textContent = override.label || meta.defaultLabel;
+            if (meta.helpEl) meta.helpEl.textContent = override.help || meta.defaultHelp;
+        });
     }
 
     updateParameterDisplays() {
